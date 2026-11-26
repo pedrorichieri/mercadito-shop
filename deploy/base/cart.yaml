@@ -17,6 +17,9 @@ spec:
       containers:
       - name: cart
         image: REPLACE_ME
+        resources:
+          requests: { cpu: 25m, memory: 32Mi }
+          limits: { cpu: 150m, memory: 96Mi }
         ports:
         - containerPort: 8082
         envFrom:
