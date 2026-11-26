@@ -122,6 +122,8 @@ jobs:
       - name: Apply config and run the database migration
         run: |
           kubectl -n "$NAMESPACE" apply -f out/configmap.yaml
+          # Dashboard de Grafana: lo recoge el sidecar de Grafana por la etiqueta grafana_dashboard.
+          kubectl -n "$NAMESPACE" apply -f out/grafana-dashboard.yaml
           # Jobs are immutable: delete the previous one so the new image runs.
           kubectl -n "$NAMESPACE" delete job catalog-migrate --ignore-not-found --wait=true
           kubectl -n "$NAMESPACE" apply -f out/migrate-job.yaml
