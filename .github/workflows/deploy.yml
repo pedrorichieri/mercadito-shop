@@ -136,6 +136,7 @@ jobs:
             kubectl -n "$NAMESPACE" apply -f "out/$f.yaml"
           done
           [ -f out/ingress.yaml ] && kubectl -n "$NAMESPACE" apply -f out/ingress.yaml || true
+          kubectl -n "$NAMESPACE" apply -f out/hpa.yaml
 
       - name: Wait for rollouts
         run: |
