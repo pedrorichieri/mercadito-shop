@@ -17,6 +17,9 @@ spec:
       containers:
       - name: catalog
         image: REPLACE_ME
+        resources:
+          requests: { cpu: 100m, memory: 128Mi }
+          limits: { cpu: 500m, memory: 384Mi }
         ports:
         - containerPort: 8081
         envFrom:
