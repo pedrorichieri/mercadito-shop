@@ -5,7 +5,12 @@ metadata:
   labels:
     app: catalog
 spec:
-  replicas: 1
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       app: catalog
@@ -14,12 +19,35 @@ spec:
       labels:
         app: catalog
     spec:
+      # Tiempo para drenar: /readyz pasa a 503 con SIGTERM y SHUTDOWN_DRAIN_SECONDS mantiene el servicio.
+      terminationGracePeriodSeconds: 40
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app: catalog
       containers:
       - name: catalog
         image: REPLACE_ME
         resources:
           requests: { cpu: 100m, memory: 128Mi }
           limits: { cpu: 500m, memory: 384Mi }
+        startupProbe:
+          httpGet: { path: /readyz, port: 8081 }
+          periodSeconds: 5
+          failureThreshold: 30
+        readinessProbe:
+          httpGet: { path: /readyz, port: 8081 }
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        livenessProbe:
+          httpGet: { path: /healthz, port: 8081 }
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
         ports:
         - containerPort: 8081
         envFrom:
@@ -48,3 +76,13 @@ spec:
   ports:
   - port: 8081
     targetPort: 8081
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: catalog
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: catalog

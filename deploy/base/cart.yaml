@@ -5,7 +5,12 @@ metadata:
   labels:
     app: cart
 spec:
-  replicas: 1
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       app: cart
@@ -14,18 +19,48 @@ spec:
       labels:
         app: cart
     spec:
+      # Tiempo para drenar: /readyz pasa a 503 con SIGTERM y SHUTDOWN_DRAIN_SECONDS mantiene el servicio.
+      terminationGracePeriodSeconds: 40
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app: cart
       containers:
       - name: cart
         image: REPLACE_ME
         resources:
           requests: { cpu: 25m, memory: 32Mi }
           limits: { cpu: 150m, memory: 96Mi }
+        startupProbe:
+          httpGet: { path: /readyz, port: 8082 }
+          periodSeconds: 5
+          failureThreshold: 12
+        readinessProbe:
+          httpGet: { path: /readyz, port: 8082 }
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        livenessProbe:
+          httpGet: { path: /healthz, port: 8082 }
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
         ports:
         - containerPort: 8082
         envFrom:
         - configMapRef:
             name: shop-config
         env:
+        - name: CART_STORE
+          value: redis
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: shop-redis
+              key: url
         - name: POD_NAME
           valueFrom:
             fieldRef:
@@ -43,3 +78,13 @@ spec:
   ports:
   - port: 8082
     targetPort: 8082
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: cart
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: cart
